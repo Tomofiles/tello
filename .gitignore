@@ -1,0 +1,6 @@
+/.vscode/
+/bin/
+/pkg/
+/src/github.com/
+/src/gobot.io
+/src/golang.org/
