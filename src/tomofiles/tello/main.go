@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"gobot.io/x/gobot"
@@ -12,6 +13,11 @@ func main() {
 
 	work := func() {
 		drone.TakeOff()
+
+		drone.On(tello.FlightDataEvent, func(event interface{}) {
+			flightData := event.(*tello.FlightData)
+			fmt.Println(flightData)
+		})
 
 		gobot.After(5*time.Second, func() {
 			drone.Land()
