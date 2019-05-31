@@ -1,34 +1,105 @@
 package main
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
-	"time"
+	"net"
+	"net/http"
+	"os"
+	"strings"
 
+	"github.com/gorilla/websocket"
 	"gobot.io/x/gobot"
 	"gobot.io/x/gobot/platforms/dji/tello"
 )
 
+var connWSs []*websocket.Conn
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
 func main() {
-	drone := tello.NewDriver("8888")
+	stdin := bufio.NewScanner(os.Stdin)
 
-	work := func() {
-		drone.TakeOff()
+	drone := tello.NewDriver("8889")
 
-		drone.On(tello.FlightDataEvent, func(event interface{}) {
-			flightData := event.(*tello.FlightData)
-			fmt.Println(flightData)
-		})
+	workDrone := func() {
+		go staticServer()
+		go websocketServer()
+		go udpServer()
 
-		gobot.After(5*time.Second, func() {
-			drone.Land()
-		})
+		go func() {
+			drone.SendCommand("command")
+			for {
+				fmt.Print("command? > ")
+				if !stdin.Scan() {
+					break
+				}
+				command := stdin.Text()
+				err := drone.SendCommand(command)
+				if err != nil {
+					fmt.Println(err.Error())
+				}
+			}
+		}()
 	}
 
-	robot := gobot.NewRobot("tello",
+	robotDrone := gobot.NewRobot("tello",
 		[]gobot.Connection{},
 		[]gobot.Device{drone},
-		work,
+		workDrone,
 	)
 
-	robot.Start()
+	robotDrone.Start()
+}
+
+func udpServer() {
+	connUDP, err := net.ListenPacket("udp", ":8890")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer connUDP.Close()
+
+	var buf [1500]byte
+	for {
+		n, _, err := connUDP.ReadFrom(buf[:])
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		for _, connWS := range connWSs {
+			telemetry := parseTelemetry(string(buf[:n]))
+			connWS.WriteMessage(websocket.TextMessage, telemetry)
+		}
+	}
+}
+
+func staticServer() {
+	fs := http.FileServer(http.Dir("static"))
+	http.Handle("/", fs)
+	http.ListenAndServe(":8080", nil)
+}
+
+func websocketServer() {
+	http.HandleFunc("/telemetry", func(w http.ResponseWriter, r *http.Request) {
+		connWS, _ := upgrader.Upgrade(w, r, nil)
+		connWSs = append(connWSs, connWS)
+	})
+}
+
+func parseTelemetry(telemetry string) []byte {
+	items := strings.Split(telemetry, ";")
+	itemsMap := make(map[string]string)
+	for _, item := range items {
+		pair := strings.Split(item, ":")
+		if pair[0] == "\r\n" {
+			break
+		}
+		itemsMap[pair[0]] = pair[1]
+	}
+	jsonTelemetry, _ := json.Marshal(itemsMap)
+	return jsonTelemetry
 }

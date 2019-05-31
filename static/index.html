@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Tello Telemetry Viewer</title>
+  <script>
+    var url = "ws://" + window.location.host + "/telemetry";
+    var ws = new WebSocket(url);
+    ws.onmessage = function (msg) {
+    　var json = JSON.parse(msg.data)
+      for (key in json) {
+        var data = document.getElementById(key);
+        data.innerHTML = json[key];
+      }
+    };
+  </script>
+</head>
+<body>
+  <table>
+    <tr>
+      <td style="width: 12em">ピッチ(°)</td>
+      <td><div id="pitch"></div></td>
+    </tr>
+    <tr>
+      <td>ロール(°)</td>
+      <td><div id="roll"></div></td>
+    </tr>
+    <tr>
+      <td>ヨー(°)</td>
+      <td><div id="yaw"></div></td>
+    </tr>
+    <tr>
+      <td>X軸速度</td>
+      <td><div id="vgx"></div></td>
+    </tr>
+    <tr>
+      <td>Y軸速度</td>
+      <td><div id="vgy"></div></td>
+    </tr>
+    <tr>
+      <td>Z軸速度</td>
+      <td><div id="vgz"></div></td>
+    </tr>
+    <tr>
+      <td>最低温度(℃)</td>
+      <td><div id="templ"></div></td>
+    </tr>
+    <tr>
+      <td>最高温度(℃)</td>
+      <td><div id="temph"></div></td>
+    </tr>
+    <tr>
+      <td>TOF距離(cm)</td>
+      <td><div id="tof"></div></td>
+    </tr>
+    <tr>
+      <td>気圧高度(cm)</td>
+      <td><div id="baro"></div></td>
+    </tr>
+    <tr>
+      <td>高度(cm)</td>
+      <td><div id="h"></div></td>
+    </tr>
+    <tr>
+      <td>バッテリー残量(%)</td>
+      <td><div id="bat"></div></td>
+    </tr>
+    <tr>
+      <td>飛行時間</td>
+      <td><div id="time"></div></td>
+    </tr>
+    <tr>
+      <td>X軸加速度</td>
+      <td><div id="agx"></div></td>
+    </tr>
+    <tr>
+      <td>Y軸加速度</td>
+      <td><div id="agy"></div></td>
+    </tr>
+    <tr>
+      <td>Z軸加速度</td>
+      <td><div id="agz"></div></td>
+    </tr>
+  </table>
+</body>
+</html>

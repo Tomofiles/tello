@@ -17,7 +17,7 @@ clean:
 deps:
 	@GOPATH=$(GOPATH) GOBIN=$(GOBIN) go get \
 		gobot.io/x/gobot \
-		gobot.io/x/gobot/platforms/dji/tello
+		github.com/gorilla/websocket
 
 test:
 	@GOPATH=${GOPATH} GOBIN=${GOBIN} go test -v tomofiles/...
