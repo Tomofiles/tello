@@ -16,7 +16,6 @@ clean:
 
 deps:
 	@GOPATH=$(GOPATH) GOBIN=$(GOBIN) go get \
-		gobot.io/x/gobot \
 		github.com/gorilla/websocket
 
 test:

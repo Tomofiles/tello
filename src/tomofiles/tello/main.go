@@ -7,11 +7,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 
 	"github.com/gorilla/websocket"
-	"gobot.io/x/gobot"
-	"gobot.io/x/gobot/platforms/dji/tello"
 )
 
 var connWSs []*websocket.Conn
@@ -22,38 +21,74 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
+	fmt.Println("hello.")
+
 	stdin := bufio.NewScanner(os.Stdin)
 
-	drone := tello.NewDriver("8889")
+	go udpClient(stdin)
+	go staticServer()
+	go websocketServer()
+	go udpServer()
 
-	workDrone := func() {
-		go staticServer()
-		go websocketServer()
-		go udpServer()
+	quit := make(chan os.Signal)
+	signal.Notify(quit, os.Interrupt)
+	for {
+		sig := <-quit
+		if sig == os.Interrupt {
+			fmt.Println("bye.")
+			return
+		}
+	}
+}
 
-		go func() {
-			drone.SendCommand("command")
-			for {
-				fmt.Print("command? > ")
-				if !stdin.Scan() {
-					break
-				}
-				command := stdin.Text()
-				err := drone.SendCommand(command)
-				if err != nil {
-					fmt.Println(err.Error())
-				}
-			}
-		}()
+func udpClient(stdin *bufio.Scanner) {
+	reqAddr, err := net.ResolveUDPAddr("udp", "192.168.10.1:8889")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	respPort, err := net.ResolveUDPAddr("udp", ":8889")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	cmdConn, err := net.DialUDP("udp", respPort, reqAddr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer cmdConn.Close()
+
+	sendCommand(cmdConn, "command")
+	for {
+		fmt.Print("command? > ")
+		if !stdin.Scan() {
+			break
+		}
+		command := stdin.Text()
+		response, err := sendCommand(cmdConn, command)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		fmt.Printf("response < %s\n", response)
+	}
+	return
+}
+
+func sendCommand(cmdConn *net.UDPConn, command string) (string, error) {
+	n, err := cmdConn.Write([]byte(command))
+	if err != nil {
+		return "", err
 	}
 
-	robotDrone := gobot.NewRobot("tello",
-		[]gobot.Connection{},
-		[]gobot.Device{drone},
-		workDrone,
-	)
+	recvBuf := make([]byte, 1024)
 
-	robotDrone.Start()
+	n, err = cmdConn.Read(recvBuf)
+	if err != nil {
+		return "", err
+	}
+
+	return string(recvBuf[:n]), nil
 }
 
 func udpServer() {

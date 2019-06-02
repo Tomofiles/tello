@@ -4,15 +4,23 @@
   <meta charset="utf-8">
   <title>Tello Telemetry Viewer</title>
   <script>
-    var url = "ws://" + window.location.host + "/telemetry";
-    var ws = new WebSocket(url);
-    ws.onmessage = function (msg) {
-    　var json = JSON.parse(msg.data)
-      for (key in json) {
-        var data = document.getElementById(key);
-        data.innerHTML = json[key];
+    function connect() {
+      var url = "ws://" + window.location.host + "/telemetry";
+      var ws = new WebSocket(url);
+      ws.onmessage = function (msg) {
+      　var json = JSON.parse(msg.data)
+        for (key in json) {
+          var data = document.getElementById(key);
+          data.innerHTML = json[key];
+        }
+      };
+      ws.onclose = function (msg) {
+        setTimeout(function() {
+          connect();
+        }, 10000)
       }
-    };
+    }
+    connect();
   </script>
 </head>
 <body>
